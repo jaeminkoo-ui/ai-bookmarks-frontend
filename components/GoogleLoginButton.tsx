@@ -46,9 +46,9 @@ const GoogleLoginButton = () => {
 
   useEffect(() => {
     if (window.google) {
-      window.google.accounts.id.initialize({
-        client_id: '603050281673-t7jrfp6qv4equu58f7uhno8m4bef5h9g.apps.googleusercontent.com',
-        callback: handleLoginSuccess,
+        window.google.accounts.id.initialize({
+            client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID, // 환경 변수 사용
+            callback: handleLoginSuccess,
       });
 
       window.google.accounts.id.renderButton(
