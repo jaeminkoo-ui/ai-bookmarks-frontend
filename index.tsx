@@ -13,7 +13,7 @@ const root = ReactDOM.createRoot(rootElement);
 
 root.render(
   <React.StrictMode>
-    <AuthProvider>
+    <AuthProvider children={undefined}>
       <App />
     </AuthProvider>
   </React.StrictMode>
