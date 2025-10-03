@@ -10,14 +10,12 @@ interface User {
 // Context가 가지게 될 값들의 타입을 정의합니다.
 interface AuthContextType {
   user: User | null;
-  login: (userData: User, token: string) => void;
+  login: (userData: User) => void;
   logout: () => void;
 }
 
-// Context를 생성합니다.
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// 다른 컴포넌트들이 Context를 쉽게 사용할 수 있도록 도와주는 Hook입니다.
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -26,35 +24,31 @@ export const useAuth = () => {
   return context;
 };
 
-// 앱 전체를 감싸서 로그인 상태를 제공할 Provider 컴포넌트입니다.
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
 
-  // 앱이 처음 시작될 때 localStorage에서 토큰을 확인하여 자동 로그인 처리
-  useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    const userData = localStorage.getItem('userData');
-    if (token && userData) {
-      setUser(JSON.parse(userData));
-    }
-  }, []);
-
-
-  const login = (userData: User, token: string) => {
+  // login 함수가 사용자 정보(userData) 객체만 받도록 수정되었습니다.
+  const login = (userData: User) => {
     setUser(userData);
-    // 로그인 시 토큰과 사용자 정보를 localStorage에 저장하여 유지합니다.
-    localStorage.setItem('authToken', token);
+    // 로그인 정보를 localStorage에 저장하여 페이지를 새로고침해도 유지되게 합니다.
     localStorage.setItem('userData', JSON.stringify(userData));
   };
 
   const logout = () => {
     setUser(null);
-    // 로그아웃 시 localStorage에서 토큰과 사용자 정보를 제거합니다.
-    localStorage.removeItem('authToken');
+    // 로그아웃 시 localStorage에서 사용자 정보를 제거합니다.
     localStorage.removeItem('userData');
-    // 페이지를 새로고침하여 상태를 완전히 초기화합니다.
     window.location.reload();
   };
+  
+  // 앱이 처음 시작될 때 localStorage를 확인하여 자동 로그인 처리
+  useEffect(() => {
+    const storedUserData = localStorage.getItem('userData');
+    if (storedUserData) {
+      setUser(JSON.parse(storedUserData));
+    }
+  }, []);
+
 
   const value = { user, login, logout };
 
