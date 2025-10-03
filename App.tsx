@@ -16,7 +16,6 @@ const PlaceholderIcon = ({ color = 'bg-gray-200' }: { color?: string }) => (
     <div className={`w-8 h-8 rounded-full ${color}`}></div>
 );
 
-
 const App: React.FC = () => {
   const [categories, setCategories] = useState<ToolCategory[]>(INITIAL_TOOL_CATEGORIES);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -58,13 +57,14 @@ const App: React.FC = () => {
     setCategoryToAddTool(null);
   };
 
+  // handleAddTool 함수가 새 Modal에 맞게 수정되었습니다.
   const handleAddTool = (toolName: string, toolUrl: string, iconUrl: string | null) => {
     if (!categoryToAddTool) return;
 
     const newTool: Tool = {
       name: toolName,
       url: toolUrl,
-      icon: iconUrl ? <img src={iconUrl} alt={`${toolName} icon`} className="w-full h-full object-contain" /> : <PlaceholderIcon />,
+      icon: iconUrl ? <img src={iconUrl} alt={`${toolName} icon`} className="w-full h-full object-contain rounded" /> : <PlaceholderIcon />,
     };
 
     setCategories(prevCategories => 
@@ -97,7 +97,11 @@ const App: React.FC = () => {
     setIsAddCategoryModalOpen(false);
   };
   
-  const handleEditTool = (originalToolName: string, categoryId: string, newName: string, newUrl: string, newIconUrl: string | null) => {
+  // handleEditTool 함수가 새 Modal에 맞게 수정되었습니다.
+  const handleEditTool = (originalToolName: string, newName: string, newUrl: string, newIconUrl: string | null) => {
+    if (!toolToEdit) return;
+    const { categoryId } = toolToEdit;
+
     setCategories(prevCategories =>
       prevCategories.map(category => {
         if (category.id === categoryId) {
@@ -109,7 +113,7 @@ const App: React.FC = () => {
                     name: newName, 
                     url: newUrl, 
                     icon: newIconUrl 
-                          ? <img src={newIconUrl} alt={`${newName} icon`} className="w-full h-full object-contain" /> 
+                          ? <img src={newIconUrl} alt={`${newName} icon`} className="w-full h-full object-contain rounded" /> 
                           : <PlaceholderIcon />
                   }
                 : tool
@@ -187,6 +191,8 @@ const App: React.FC = () => {
       </main>
       <Footer />
       <FloatingActionButton />
+      
+      {/* Modal 호출 부분이 수정되었습니다. */}
       {isModalOpen && categoryToAddTool && (
         <AddToolModal
           onClose={handleCloseModal}
@@ -197,11 +203,10 @@ const App: React.FC = () => {
         <EditToolModal
             tool={toolToEdit.tool}
             onClose={() => setToolToEdit(null)}
-            onEditTool={(newName, newUrl, newIconUrl) =>
-              handleEditTool(toolToEdit.tool.name, toolToEdit.categoryId, newName, newUrl, newIconUrl)
-            }
+            onEditTool={handleEditTool}
         />
       )}
+
       {isAddCategoryModalOpen && (
         <AddCategoryModal 
           onClose={() => setIsAddCategoryModalOpen(false)}

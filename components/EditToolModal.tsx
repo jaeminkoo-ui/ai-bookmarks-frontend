@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Tool } from '../types';
 
+// onEditTool prop의 타입을 보내주신 코드에 맞게 수정합니다.
 interface EditToolModalProps {
   tool: Tool;
   onClose: () => void;
-  onEditTool: (newName: string, newUrl: string, newIconUrl: string | null) => void;
+  onEditTool: (originalToolName: string, newName: string, newUrl: string, newIconUrl: string | null) => void;
 }
 
 const EditToolModal: React.FC<EditToolModalProps> = ({ tool, onClose, onEditTool }) => {
@@ -59,7 +60,8 @@ const EditToolModal: React.FC<EditToolModalProps> = ({ tool, onClose, onEditTool
       if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
         formattedUrl = 'https://' + formattedUrl;
       }
-      onEditTool(toolName.trim(), formattedUrl, faviconUrl);
+      // 부모 컴포넌트(App.tsx)로 수정된 정보를 전달합니다.
+      onEditTool(tool.name, toolName.trim(), formattedUrl, faviconUrl);
       onClose();
     }
   };

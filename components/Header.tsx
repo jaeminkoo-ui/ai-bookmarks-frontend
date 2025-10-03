@@ -1,10 +1,12 @@
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import GoogleLoginButton from './GoogleLoginButton'; // Google 로그인 기능을 가진 컴포넌트
 
 const Header: React.FC = () => {
-  const { user, login, logout } = useAuth();
+  const { user, logout } = useAuth();
 
   return (
+    // 전체적인 구조와 디자인은 보내주신 코드를 그대로 유지합니다.
     <header className="bg-white shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
@@ -28,18 +30,18 @@ const Header: React.FC = () => {
                 </svg>
               <span>피드백</span>
             </button>
+            
+            {/* --- 이 부분이 수정되었습니다 --- */}
             {user ? (
+              // 로그인했을 때 보여줄 UI (보내주신 코드와 동일)
               <div className="flex items-center space-x-3">
+                 {/* user.avatarUrl은 나중에 백엔드에서 사용자 정보를 받아올 때 추가될 예정입니다. */}
                  <img src={user.avatarUrl} alt="User Avatar" className="w-8 h-8 rounded-full" />
                  <button onClick={logout} className="text-sm font-medium text-gray-600 hover:text-gray-900">Logout</button>
               </div>
             ) : (
-              <button onClick={login} className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                  </svg>
-                <span>Google 로그인</span>
-              </button>
+              // 로그인하지 않았을 때, Google 공식 버튼 컴포넌트를 사용합니다.
+              <GoogleLoginButton />
             )}
           </div>
         </div>
@@ -49,3 +51,4 @@ const Header: React.FC = () => {
 };
 
 export default Header;
+
