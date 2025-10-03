@@ -1,0 +1,5 @@
+{
+  "name": "AI Bookmarks",
+  "description": "A web application that serves as a directory or dashboard for various AI tools, categorized by function like AI Agent, Image, Video, and more, replicating the UI of bbali.kr.",
+  "requestFramePermissions": []
+}
