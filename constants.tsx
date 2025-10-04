@@ -5,7 +5,7 @@ import { ToolCategory } from './types';
 const getFaviconUrl = (url: string) => {
   try {
     const domain = new URL(url).hostname;
-    return `https://www.google.com/s2/favicons?sz=64&domain_url=${domain}`;
+    return `https://icon.horse/icon/${domain}`;
   } catch (error) {
     return ''; // 유효하지 않은 URL일 경우 빈 문자열 반환
   }
