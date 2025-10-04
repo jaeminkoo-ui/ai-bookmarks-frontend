@@ -42,15 +42,14 @@ const App: React.FC = () => {
       
       const data = await response.json();
       
-      // 🔥 카테고리를 초기 상태로 리셋 (디폴트 툴 제거, 추가 버튼만 유지)
-      const resetCategories = INITIAL_TOOL_CATEGORIES.map(cat => ({
-        ...cat,
-        tools: cat.tools.filter(t => t.isAddButton)
-      }));
-      
       if (data.tools && data.tools.length > 0) {
-        const updatedCategories = [...resetCategories];
+        // 기본 카테고리 복사 (기본 도구들 유지)
+        const updatedCategories = INITIAL_TOOL_CATEGORIES.map(cat => ({
+          ...cat,
+          tools: [...cat.tools]
+        }));
         
+        // 사용자가 저장한 도구 추가
         data.tools.forEach((dbTool: any) => {
           const categoryIndex = updatedCategories.findIndex(
             cat => cat.id === dbTool.categoryId
@@ -76,10 +75,8 @@ const App: React.FC = () => {
         });
         
         setCategories(updatedCategories);
-      } else {
-        // 🔥 저장된 툴이 없으면 깨끗한 초기 상태로
-        setCategories(resetCategories);
       }
+      // 저장된 도구가 없으면 초기 상태(INITIAL_TOOL_CATEGORIES) 유지
     } catch (error) {
       console.error('Failed to load user tools:', error);
     }
@@ -135,12 +132,12 @@ const App: React.FC = () => {
 
       if (!response.ok) throw new Error('Failed to save tool');
 
-      const data = await response.json(); // 🔥 추가: 백엔드 응답 받기
+      const data = await response.json();
 
       const newTool: Tool = {
         name: toolName,
         url: toolUrl,
-        dbId: data.tool.id, // 🔥 추가: DB ID 저장
+        dbId: data.tool.id,
         icon: iconUrl ? <img src={iconUrl} alt={`${toolName} icon`} className="w-full h-full object-contain rounded" /> : <PlaceholderIcon />,
       };
 
@@ -178,7 +175,6 @@ const App: React.FC = () => {
     setIsAddCategoryModalOpen(false);
   };
   
-  // 🔥 수정: 백엔드 PUT 요청 추가
   const handleEditTool = async (originalToolName: string, newName: string, newUrl: string, newIconUrl: string | null) => {
     if (!toolToEdit) return;
     const { categoryId, tool } = toolToEdit;
@@ -244,7 +240,6 @@ const App: React.FC = () => {
     setContextMenu(null);
   };
 
-  // 🔥 수정: 백엔드 DELETE 요청 추가
   const handleDeleteTool = async (categoryId: string, toolName: string) => {
     const category = categories.find(c => c.id === categoryId);
     const tool = category?.tools.find(t => t.name === toolName);
