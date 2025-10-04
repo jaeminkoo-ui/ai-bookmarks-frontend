@@ -1,7 +1,6 @@
-import React, { useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext'; // AuthContext를 사용하기 위해 import 합니다.
+import React, { useEffect, useRef } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
-// window 객체에 google 속성을 추가하기 위한 타입 선언
 declare global {
   interface Window {
     google: any;
@@ -9,10 +8,10 @@ declare global {
 }
 
 const GoogleLoginButton = () => {
-  // AuthContext에서 login 함수를 가져옵니다.
   const { login } = useAuth();
+  const buttonRef = useRef<HTMLDivElement>(null);
+  const initAttempted = useRef(false);
 
-  // 로그인 성공 시 호출될 함수
   const handleLoginSuccess = (response: any) => {
     console.log("✅ Google Login Success");
     const idToken = response.credential;
@@ -23,18 +22,15 @@ const GoogleLoginButton = () => {
       body: JSON.stringify({ token: idToken }),
     })
     .then(res => {
-        if (!res.ok) { // 응답이 성공적이지 않으면 에러를 발생시킵니다.
+        if (!res.ok) {
             return res.json().then(err => { throw new Error(err.message || 'Unknown server error') });
         }
         return res.json();
     })
     .then(data => {
-      // --- 이 부분이 최종 수정되었습니다! ---
-      // 백엔드로부터 받은 사용자 정보 객체(data.user)로 login 함수를 호출합니다.
       if (data && data.user) {
         login(data.user);
       } else {
-        // 백엔드 응답에 user 객체가 없는 경우
         throw new Error('User data not found in backend response');
       }
     })
@@ -45,20 +41,30 @@ const GoogleLoginButton = () => {
   };
 
   useEffect(() => {
-    if (window.google) {
+    const initializeButton = () => {
+      if (initAttempted.current) return;
+      
+      if (window.google && buttonRef.current) {
+        initAttempted.current = true;
+        
         window.google.accounts.id.initialize({
-            client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID, // 환경 변수 사용
-            callback: handleLoginSuccess,
-      });
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+          callback: handleLoginSuccess,
+        });
 
-      window.google.accounts.id.renderButton(
-        document.getElementById('google-signin-button'),
-        { theme: 'outline', size: 'large', text: 'signin_with', shape: 'rectangular' }
-      );
-    }
+        window.google.accounts.id.renderButton(
+          buttonRef.current,
+          { theme: 'outline', size: 'large', text: 'signin_with', shape: 'rectangular' }
+        );
+      } else {
+        setTimeout(initializeButton, 50);
+      }
+    };
+
+    initializeButton();
   }, []);
 
-  return <div id="google-signin-button"></div>;
+  return <div ref={buttonRef}></div>;
 };
 
 export default GoogleLoginButton;
