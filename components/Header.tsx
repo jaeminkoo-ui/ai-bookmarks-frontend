@@ -18,17 +18,17 @@ const Header: React.FC = () => {
               </svg>
               <span className="text-2xl font-bold text-blue-600">Quick AI Bookmarks</span>
             </div>
-            <nav className="hidden md:flex space-x-8">
-              <a href="#" className="text-gray-600 hover:text-gray-900 font-semibold">AI 바로가기</a>
-              <a href="#" className="text-gray-600 hover:text-gray-900 font-semibold">AI 구독관리</a>
-            </nav>
+             {/* <nav className="hidden md:flex space-x-8">
+               <a href="#" className="text-gray-600 hover:text-gray-900 font-semibold">AI 바로가기</a>
+               <a href="#" className="text-gray-600 hover:text-gray-900 font-semibold">AI 구독관리</a>
+             </nav> */}
           </div>
           <div className="flex items-center space-x-4">
             <button className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
-              <span>피드백</span>
+              {/* <span>피드백</span> */}
             </button>
             
             {/* --- 이 부분이 수정되었습니다 --- */}
