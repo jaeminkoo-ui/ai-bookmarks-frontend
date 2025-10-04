@@ -29,7 +29,6 @@ const App: React.FC = () => {
   const dragItemIndex = useRef<number | null>(null);
   const dragOverItemIndex = useRef<number | null>(null);
 
-  // 로그인 시 사용자 툴 불러오기
   useEffect(() => {
     if (user?.email) {
       loadUserTools(user.email);
@@ -43,7 +42,6 @@ const App: React.FC = () => {
       
       const data = await response.json();
       
-      // 백엔드에서 가져온 툴을 카테고리에 추가
       if (data.tools && data.tools.length > 0) {
         setCategories(prevCategories => {
           const updatedCategories = [...prevCategories];
@@ -57,12 +55,12 @@ const App: React.FC = () => {
               const newTool: Tool = {
                 name: dbTool.toolName,
                 url: dbTool.toolUrl,
+                dbId: dbTool.id, // 🔥 추가: 데이터베이스 ID 저장
                 icon: dbTool.iconUrl 
                   ? <img src={dbTool.iconUrl} alt={`${dbTool.toolName} icon`} className="w-full h-full object-contain rounded" />
                   : <PlaceholderIcon />,
               };
               
-              // 추가 버튼 앞에 삽입
               const addButtonIndex = updatedCategories[categoryIndex].tools.findIndex(t => t.isAddButton);
               if (addButtonIndex !== -1) {
                 updatedCategories[categoryIndex].tools.splice(addButtonIndex, 0, newTool);
@@ -115,7 +113,6 @@ const App: React.FC = () => {
     const category = categories.find(cat => cat.title === categoryToAddTool);
     if (!category) return;
 
-    // 백엔드에 저장
     try {
       const response = await fetch(`${BACKEND_URL}/api/user/tools`, {
         method: 'POST',
@@ -131,10 +128,12 @@ const App: React.FC = () => {
 
       if (!response.ok) throw new Error('Failed to save tool');
 
-      // 로컬 상태 업데이트
+      const data = await response.json(); // 🔥 추가: 백엔드 응답 받기
+
       const newTool: Tool = {
         name: toolName,
         url: toolUrl,
+        dbId: data.tool.id, // 🔥 추가: DB ID 저장
         icon: iconUrl ? <img src={iconUrl} alt={`${toolName} icon`} className="w-full h-full object-contain rounded" /> : <PlaceholderIcon />,
       };
 
@@ -172,25 +171,48 @@ const App: React.FC = () => {
     setIsAddCategoryModalOpen(false);
   };
   
-  const handleEditTool = (originalToolName: string, newName: string, newUrl: string, newIconUrl: string | null) => {
+  // 🔥 수정: 백엔드 PUT 요청 추가
+  const handleEditTool = async (originalToolName: string, newName: string, newUrl: string, newIconUrl: string | null) => {
     if (!toolToEdit) return;
-    const { categoryId } = toolToEdit;
+    const { categoryId, tool } = toolToEdit;
 
+    // 백엔드에 수정 요청
+    if (tool.dbId) {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/user/tools/${tool.dbId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            toolName: newName,
+            toolUrl: newUrl,
+            iconUrl: newIconUrl,
+          }),
+        });
+
+        if (!response.ok) throw new Error('Failed to update tool');
+      } catch (error) {
+        console.error('Failed to update tool:', error);
+        alert('툴 수정에 실패했습니다.');
+        return;
+      }
+    }
+
+    // 로컬 상태 업데이트
     setCategories(prevCategories =>
       prevCategories.map(category => {
         if (category.id === categoryId) {
           return {
             ...category,
-            tools: category.tools.map(tool =>
-              tool.name === originalToolName
-                ? { ...tool, 
+            tools: category.tools.map(t =>
+              t.name === originalToolName
+                ? { ...t, 
                     name: newName, 
                     url: newUrl, 
                     icon: newIconUrl 
                           ? <img src={newIconUrl} alt={`${newName} icon`} className="w-full h-full object-contain rounded" /> 
                           : <PlaceholderIcon />
                   }
-                : tool
+                : t
             ),
           };
         }
@@ -215,16 +237,36 @@ const App: React.FC = () => {
     setContextMenu(null);
   };
 
-  const handleDeleteTool = (categoryId: string, toolName: string) => {
+  // 🔥 수정: 백엔드 DELETE 요청 추가
+  const handleDeleteTool = async (categoryId: string, toolName: string) => {
+    const category = categories.find(c => c.id === categoryId);
+    const tool = category?.tools.find(t => t.name === toolName);
+
+    // 백엔드에 삭제 요청
+    if (tool?.dbId) {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/user/tools/${tool.dbId}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) throw new Error('Failed to delete tool');
+      } catch (error) {
+        console.error('Failed to delete tool:', error);
+        alert('툴 삭제에 실패했습니다.');
+        return;
+      }
+    }
+
+    // 로컬 상태 업데이트
     setCategories(prevCategories =>
-      prevCategories.map(category => {
-        if (category.id === categoryId) {
+      prevCategories.map(cat => {
+        if (cat.id === categoryId) {
           return {
-            ...category,
-            tools: category.tools.filter(tool => tool.name !== toolName),
+            ...cat,
+            tools: cat.tools.filter(t => t.name !== toolName),
           };
         }
-        return category;
+        return cat;
       })
     );
     handleCloseContextMenu();
