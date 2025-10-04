@@ -11,10 +11,10 @@ const Footer: React.FC = () => {
             </span>
             <span className="font-bold">v1.1</span>
             <a href="#" className="font-semibold text-gray-800 hover:underline">
-              250930 릴리즈 노트
+               251004 Test Version 0.1 (베타)
             </a>
           </div>
-          <span className="text-gray-500">2025. 9. 28.</span>
+          <span className="text-gray-500">2025. 10. 4</span>
         </div>
       </div>
     </footer>

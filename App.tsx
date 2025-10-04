@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import Header from './components/Header';
 import NewsTicker from './components/NewsTicker';
 import ToolSection from './components/ToolSection';
-import FloatingActionButton from './components/FloatingActionButton';
+// import FloatingActionButton from './components/FloatingActionButton';
 import AddToolModal from './components/AddToolModal';
 import EditToolModal from './components/EditToolModal';
 import AddCategoryModal from './components/AddCategoryModal';
@@ -190,7 +190,7 @@ const App: React.FC = () => {
         )}
       </main>
       <Footer />
-      <FloatingActionButton />
+      {/* <FloatingActionButton /> */}
       
       {/* Modal 호출 부분이 수정되었습니다. */}
       {isModalOpen && categoryToAddTool && (

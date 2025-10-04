@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 
 const NewsTicker: React.FC = () => {
   const newsItems = [
-    "루마 Ray 3 가 출시 되었습니다.",
-    "ChatGPT-5 베타 테스트가 시작되었습니다.",
-    "Google Gemini 2.0 업데이트 발표"
+    "Sora 2.0 베타 서비스가 시작되었습니다.",
+    "ChatGPT-5 서비스가 시작되었습니다.",
+    "Google Gemini 2.5 서비스가 시작되었습니다."
   ];
 
   const [currentIndex, setCurrentIndex] = useState(0);
