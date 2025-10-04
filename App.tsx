@@ -11,8 +11,7 @@ import { INITIAL_TOOL_CATEGORIES } from './constants';
 import { ToolCategory, Tool } from './types';
 import { useAuth } from './contexts/AuthContext';
 import ToolIcon from './components/ToolIcon';
-
-const BACKEND_URL = 'https://ai-bookmarks-backends.onrender.com';
+import apiClient from './api'; // ★ 1. apiClient를 import 합니다.
 
 const PlaceholderIcon = ({ color = 'bg-gray-200' }: { color?: string }) => (
     <div className={`w-8 h-8 rounded-full ${color}`}></div>
@@ -25,63 +24,57 @@ const App: React.FC = () => {
   const [categoryToAddTool, setCategoryToAddTool] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; categoryId: string; toolName: string; } | null>(null);
   const [toolToEdit, setToolToEdit] = useState<{ categoryId: string; tool: Tool } | null>(null);
-  const { user } = useAuth();
+  const { user, logout } = useAuth(); // ★ logout 함수도 가져옵니다.
 
   const dragItemIndex = useRef<number | null>(null);
   const dragOverItemIndex = useRef<number | null>(null);
+  
+  // ★ API 에러를 공통으로 처리하는 함수
+  const handleApiError = (error: any) => {
+    console.error('API Error:', error);
+    // 인증 에러(401, 403)가 발생하면 자동으로 로그아웃 처리
+    if (error.response && [401, 403].includes(error.response.status)) {
+      alert('세션이 만료되었습니다. 다시 로그인해주세요.');
+      logout();
+    } else {
+      alert('데이터 처리 중 오류가 발생했습니다.');
+    }
+  };
 
   useEffect(() => {
-    if (user?.email) {
-      loadUserData(user.email);
+    // 사용자가 로그인한 경우에만 데이터를 불러옵니다.
+    if (user) {
+      loadUserData();
     }
   }, [user]);
 
-  const loadUserData = async (email: string) => {
+  // ★ 2. loadUserData 함수를 apiClient로 수정
+  const loadUserData = async () => {
     try {
-      // 사용자가 추가한 툴과 오버라이드 정보를 동시에 가져오기
+      // 이제 URL에 email을 넣을 필요가 없습니다. 토큰이 모든 것을 처리합니다.
       const [toolsResponse, overridesResponse] = await Promise.all([
-        fetch(`${BACKEND_URL}/api/user/tools/${email}`),
-        fetch(`${BACKEND_URL}/api/user/tool-overrides/${email}`)
+        apiClient.get('/api/user/tools'),
+        apiClient.get('/api/user/tool-overrides')
       ]);
 
-      if (!toolsResponse.ok || !overridesResponse.ok) {
-        throw new Error('Failed to load user data');
-      }
+      const toolsData = toolsResponse.data;
+      const overridesData = overridesResponse.data;
 
-      const toolsData = await toolsResponse.json();
-      const overridesData = await overridesResponse.json();
-
-      // 기본 카테고리 복사
       const updatedCategories = INITIAL_TOOL_CATEGORIES.map(cat => ({
         ...cat,
         tools: [...cat.tools]
       }));
 
-      // 오버라이드 적용 (기본 도구 수정/삭제)
       if (overridesData.overrides && overridesData.overrides.length > 0) {
         overridesData.overrides.forEach((override: any) => {
-          const categoryIndex = updatedCategories.findIndex(
-            cat => cat.id === override.categoryId
-          );
-
+          const categoryIndex = updatedCategories.findIndex(cat => cat.id === override.categoryId);
           if (categoryIndex !== -1) {
             if (override.action === 'hide') {
-              // 도구 숨기기
-              updatedCategories[categoryIndex].tools = updatedCategories[categoryIndex].tools.filter(
-                t => t.name !== override.toolName
-              );
+              updatedCategories[categoryIndex].tools = updatedCategories[categoryIndex].tools.filter(t => t.name !== override.toolName);
             } else if (override.action === 'edit') {
-              // 도구 수정
               updatedCategories[categoryIndex].tools = updatedCategories[categoryIndex].tools.map(t => {
                 if (t.name === override.toolName) {
-                  return {
-                    ...t,
-                    name: override.newName || t.name,
-                    url: override.newUrl || t.url,
-                    icon: override.newIconUrl 
-                      ? <ToolIcon src={override.newIconUrl} alt={`${override.newName || t.name} icon`} />
-                      : t.icon
-                  };
+                  return { ...t, name: override.newName || t.name, url: override.newUrl || t.url, icon: override.newIconUrl ? <ToolIcon src={override.newIconUrl} alt={`${override.newName || t.name} icon`} /> : t.icon };
                 }
                 return t;
               });
@@ -90,23 +83,11 @@ const App: React.FC = () => {
         });
       }
 
-      // 사용자가 추가한 도구 추가
       if (toolsData.tools && toolsData.tools.length > 0) {
         toolsData.tools.forEach((dbTool: any) => {
-          const categoryIndex = updatedCategories.findIndex(
-            cat => cat.id === dbTool.categoryId
-          );
-
+          const categoryIndex = updatedCategories.findIndex(cat => cat.id === dbTool.categoryId);
           if (categoryIndex !== -1) {
-            const newTool: Tool = {
-              name: dbTool.toolName,
-              url: dbTool.toolUrl,
-              dbId: dbTool.id,
-              icon: dbTool.iconUrl 
-                ? <ToolIcon src={dbTool.iconUrl} alt={`${dbTool.toolName} icon`} />
-                : <PlaceholderIcon />,
-            };
-
+            const newTool: Tool = { name: dbTool.toolName, url: dbTool.toolUrl, dbId: dbTool.id, icon: dbTool.iconUrl ? <ToolIcon src={dbTool.iconUrl} alt={`${dbTool.toolName} icon`} /> : <PlaceholderIcon /> };
             const addButtonIndex = updatedCategories[categoryIndex].tools.findIndex(t => t.isAddButton);
             if (addButtonIndex !== -1) {
               updatedCategories[categoryIndex].tools.splice(addButtonIndex, 0, newTool);
@@ -116,21 +97,14 @@ const App: React.FC = () => {
           }
         });
       }
-
       setCategories(updatedCategories);
     } catch (error) {
-      console.error('Failed to load user data:', error);
+      handleApiError(error);
     }
   };
 
-  const handleDragStart = (index: number) => {
-    dragItemIndex.current = index;
-  };
-
-  const handleDragEnter = (index: number) => {
-    dragOverItemIndex.current = index;
-  };
-
+  const handleDragStart = (index: number) => { dragItemIndex.current = index; };
+  const handleDragEnter = (index: number) => { dragOverItemIndex.current = index; };
   const handleDragEnd = () => {
     if (dragItemIndex.current !== null && dragOverItemIndex.current !== null && dragItemIndex.current !== dragOverItemIndex.current) {
       const newCategories = [...categories];
@@ -142,222 +116,108 @@ const App: React.FC = () => {
     dragOverItemIndex.current = null;
   };
 
-  const handleOpenAddToolModal = (title: string) => {
-    setCategoryToAddTool(title);
-    setIsModalOpen(true);
-  };
+  const handleOpenAddToolModal = (title: string) => { setCategoryToAddTool(title); setIsModalOpen(true); };
+  const handleCloseModal = () => { setIsModalOpen(false); setCategoryToAddTool(null); };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setCategoryToAddTool(null);
-  };
-
+  // ★ 3. handleAddTool 함수를 apiClient로 수정
   const handleAddTool = async (toolName: string, toolUrl: string, iconUrl: string | null) => {
-    if (!categoryToAddTool || !user?.email) return;
-
+    if (!categoryToAddTool || !user) return;
     const category = categories.find(cat => cat.title === categoryToAddTool);
     if (!category) return;
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/user/tools`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userEmail: user.email,
-          categoryId: category.id,
-          toolName,
-          toolUrl,
-          iconUrl,
-        }),
+      // userEmail을 보낼 필요가 없습니다.
+      const response = await apiClient.post('/api/user/tools', {
+        categoryId: category.id,
+        toolName,
+        toolUrl,
+        iconUrl,
       });
 
-      if (!response.ok) throw new Error('Failed to save tool');
-
-      const data = await response.json();
-
-      const newTool: Tool = {
-        name: toolName,
-        url: toolUrl,
-        dbId: data.tool.id,
-        icon: iconUrl ? <ToolIcon src={iconUrl} alt={`${toolName} icon`} /> : <PlaceholderIcon />,
-      };
+      const newTool: Tool = { name: toolName, url: toolUrl, dbId: response.data.tool.id, icon: iconUrl ? <ToolIcon src={iconUrl} alt={`${toolName} icon`} /> : <PlaceholderIcon /> };
 
       setCategories(prevCategories => 
         prevCategories.map(cat => {
           if (cat.title === categoryToAddTool) {
             const addButtonIndex = cat.tools.findIndex(t => t.isAddButton);
             const newTools = [...cat.tools];
-            if (addButtonIndex !== -1) {
-              newTools.splice(addButtonIndex, 0, newTool);
-            } else {
-              newTools.push(newTool);
-            }
+            if (addButtonIndex !== -1) { newTools.splice(addButtonIndex, 0, newTool); } else { newTools.push(newTool); }
             return { ...cat, tools: newTools };
           }
           return cat;
         })
       );
     } catch (error) {
-      console.error('Failed to add tool:', error);
-      alert('툴 추가에 실패했습니다.');
+      handleApiError(error);
     }
   };
 
   const handleAddCategory = (name: string) => {
     if (!name.trim()) return;
-
-    const newCategory: ToolCategory = {
-      id: `${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
-      title: name.trim(),
-      tools: [{ name: '', icon: <div/>, isAddButton: true }]
-    };
-
+    const newCategory: ToolCategory = { id: `${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`, title: name.trim(), tools: [{ name: '', icon: <div/>, isAddButton: true }] };
     setCategories(prev => [...prev, newCategory]);
     setIsAddCategoryModalOpen(false);
   };
   
+  // ★ 4. handleEditTool 함수를 apiClient로 수정
   const handleEditTool = async (originalToolName: string, newName: string, newUrl: string, newIconUrl: string | null) => {
-    if (!toolToEdit || !user?.email) return;
+    if (!toolToEdit || !user) return;
     const { categoryId, tool } = toolToEdit;
 
-    // 사용자가 추가한 도구인 경우
-    if (tool.dbId) {
-      try {
-        const response = await fetch(`${BACKEND_URL}/api/user/tools/${tool.dbId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            toolName: newName,
-            toolUrl: newUrl,
-            iconUrl: newIconUrl,
-          }),
-        });
-
-        if (!response.ok) throw new Error('Failed to update tool');
-      } catch (error) {
-        console.error('Failed to update tool:', error);
-        alert('툴 수정에 실패했습니다.');
-        return;
+    try {
+      if (tool.dbId) { // 사용자가 추가한 도구 (PUT)
+        await apiClient.put(`/api/user/tools/${tool.dbId}`, { toolName: newName, toolUrl: newUrl, iconUrl: newIconUrl });
+      } else { // 기본 도구 (오버라이드 POST)
+        await apiClient.post('/api/user/tool-overrides', { categoryId, toolName: originalToolName, action: 'edit', newName, newUrl, newIconUrl });
       }
-    } else {
-      // 기본 도구인 경우 - 오버라이드 저장
-      try {
-        const response = await fetch(`${BACKEND_URL}/api/user/tool-overrides`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userEmail: user.email,
-            categoryId,
-            toolName: originalToolName,
-            action: 'edit',
-            newName,
-            newUrl,
-            newIconUrl,
-          }),
-        });
 
-        if (!response.ok) throw new Error('Failed to save tool override');
-      } catch (error) {
-        console.error('Failed to save tool override:', error);
-        alert('툴 수정에 실패했습니다.');
-        return;
-      }
+      setCategories(prevCategories =>
+        prevCategories.map(category => {
+          if (category.id === categoryId) {
+            return { ...category, tools: category.tools.map(t => t.name === originalToolName ? { ...t, name: newName, url: newUrl, icon: newIconUrl ? <ToolIcon src={newIconUrl} alt={`${newName} icon`} /> : <PlaceholderIcon /> } : t) };
+          }
+          return category;
+        })
+      );
+      setToolToEdit(null);
+    } catch (error) {
+      handleApiError(error);
     }
-
-    // 로컬 상태 업데이트
-    setCategories(prevCategories =>
-      prevCategories.map(category => {
-        if (category.id === categoryId) {
-          return {
-            ...category,
-            tools: category.tools.map(t =>
-              t.name === originalToolName
-                ? { ...t, 
-                    name: newName, 
-                    url: newUrl, 
-                    icon: newIconUrl 
-                          ? <ToolIcon src={newIconUrl} alt={`${newName} icon`} />
-                          : <PlaceholderIcon />
-                  }
-                : t
-            ),
-          };
-        }
-        return category;
-      })
-    );
-    setToolToEdit(null);
   };
-
+  
   const handleOpenContextMenu = (event: React.MouseEvent, categoryId: string, toolName: string) => {
     event.preventDefault();
     if (!user) return;
-    setContextMenu({
-      x: event.clientX,
-      y: event.clientY,
-      categoryId,
-      toolName,
-    });
+    setContextMenu({ x: event.clientX, y: event.clientY, categoryId, toolName });
   };
+  const handleCloseContextMenu = () => { setContextMenu(null); };
 
-  const handleCloseContextMenu = () => {
-    setContextMenu(null);
-  };
-
+  // ★ 5. handleDeleteTool 함수를 apiClient로 수정
   const handleDeleteTool = async (categoryId: string, toolName: string) => {
-    if (!user?.email) return;
+    if (!user) return;
 
     const category = categories.find(c => c.id === categoryId);
     const tool = category?.tools.find(t => t.name === toolName);
 
-    // 사용자가 추가한 도구인 경우
-    if (tool?.dbId) {
-      try {
-        const response = await fetch(`${BACKEND_URL}/api/user/tools/${tool.dbId}`, {
-          method: 'DELETE',
-        });
-
-        if (!response.ok) throw new Error('Failed to delete tool');
-      } catch (error) {
-        console.error('Failed to delete tool:', error);
-        alert('툴 삭제에 실패했습니다.');
-        return;
+    try {
+      if (tool?.dbId) { // 사용자가 추가한 도구 (DELETE)
+        await apiClient.delete(`/api/user/tools/${tool.dbId}`);
+      } else { // 기본 도구 (오버라이드 POST - 숨김)
+        await apiClient.post('/api/user/tool-overrides', { categoryId, toolName, action: 'hide' });
       }
-    } else {
-      // 기본 도구인 경우 - 오버라이드 저장 (숨김)
-      try {
-        const response = await fetch(`${BACKEND_URL}/api/user/tool-overrides`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userEmail: user.email,
-            categoryId,
-            toolName,
-            action: 'hide',
-          }),
-        });
 
-        if (!response.ok) throw new Error('Failed to save tool override');
-      } catch (error) {
-        console.error('Failed to save tool override:', error);
-        alert('툴 삭제에 실패했습니다.');
-        return;
-      }
+      setCategories(prevCategories =>
+        prevCategories.map(cat => {
+          if (cat.id === categoryId) {
+            return { ...cat, tools: cat.tools.filter(t => t.name !== toolName) };
+          }
+          return cat;
+        })
+      );
+      handleCloseContextMenu();
+    } catch (error) {
+      handleApiError(error);
     }
-
-    // 로컬 상태 업데이트
-    setCategories(prevCategories =>
-      prevCategories.map(cat => {
-        if (cat.id === categoryId) {
-          return {
-            ...cat,
-            tools: cat.tools.filter(t => t.name !== toolName),
-          };
-        }
-        return cat;
-      })
-    );
-    handleCloseContextMenu();
   };
 
   return (
@@ -367,26 +227,12 @@ const App: React.FC = () => {
         <NewsTicker />
         <div className="space-y-16 mt-12">
           {categories.map((category, index) => (
-            <ToolSection
-              key={category.id}
-              id={category.id}
-              title={category.title}
-              tools={category.tools}
-              index={index}
-              onDragStart={handleDragStart}
-              onDragEnter={handleDragEnter}
-              onDragEnd={handleDragEnd}
-              onOpenAddToolModal={handleOpenAddToolModal}
-              onOpenContextMenu={handleOpenContextMenu}
-            />
+            <ToolSection key={category.id} id={category.id} title={category.title} tools={category.tools} index={index} onDragStart={handleDragStart} onDragEnter={handleDragEnter} onDragEnd={handleDragEnd} onOpenAddToolModal={handleOpenAddToolModal} onOpenContextMenu={handleOpenContextMenu} />
           ))}
         </div>
         {user && (
           <div className="text-center mt-16">
-            <button
-              onClick={() => setIsAddCategoryModalOpen(true)}
-              className="px-6 py-3 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-            >
+            <button onClick={() => setIsAddCategoryModalOpen(true)} className="px-6 py-3 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
               + 새 카테고리 추가
             </button>
           </div>
@@ -394,43 +240,18 @@ const App: React.FC = () => {
       </main>
       <Footer />
       
-      {isModalOpen && categoryToAddTool && (
-        <AddToolModal
-          onClose={handleCloseModal}
-          onAddTool={handleAddTool}
-        />
-      )}
-      {toolToEdit && (
-        <EditToolModal
-            tool={toolToEdit.tool}
-            onClose={() => setToolToEdit(null)}
-            onEditTool={handleEditTool}
-        />
-      )}
-
-      {isAddCategoryModalOpen && (
-        <AddCategoryModal 
-          onClose={() => setIsAddCategoryModalOpen(false)}
-          onAddCategory={handleAddCategory}
-        />
-      )}
+      {isModalOpen && categoryToAddTool && ( <AddToolModal onClose={handleCloseModal} onAddTool={handleAddTool} /> )}
+      {toolToEdit && ( <EditToolModal tool={toolToEdit.tool} onClose={() => setToolToEdit(null)} onEditTool={handleEditTool} /> )}
+      {isAddCategoryModalOpen && ( <AddCategoryModal onClose={() => setIsAddCategoryModalOpen(false)} onAddCategory={handleAddCategory} /> )}
       {contextMenu && (
-        <ContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          onClose={handleCloseContextMenu}
-          onAddSubscription={() => {
-            console.log('Add subscription for:', contextMenu.toolName);
-            handleCloseContextMenu();
-          }}
+        <ContextMenu x={contextMenu.x} y={contextMenu.y} onClose={handleCloseContextMenu}
+          onAddSubscription={() => { console.log('Add subscription for:', contextMenu.toolName); handleCloseContextMenu(); }}
           onEdit={() => {
             if (contextMenu) {
               const { categoryId, toolName } = contextMenu;
               const category = categories.find(c => c.id === categoryId);
               const tool = category?.tools.find(t => t.name === toolName);
-              if (category && tool) {
-                setToolToEdit({ categoryId, tool });
-              }
+              if (category && tool) { setToolToEdit({ categoryId, tool }); }
             }
             handleCloseContextMenu();
           }}

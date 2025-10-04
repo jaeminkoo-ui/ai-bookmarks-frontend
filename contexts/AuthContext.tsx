@@ -32,7 +32,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = () => {
+    // ★★★ 핵심 수정 부분 ★★★
+    // 1. 로컬 스토리지에서 인증 토큰을 삭제합니다.
+    localStorage.removeItem('authToken');
+    
+    // 2. 앱의 사용자 상태를 null로 변경합니다.
     setUser(null);
+
+    // 3. 페이지를 새로고침하여 앱을 완전히 초기 상태로 만듭니다.
     window.location.reload();
   };
 
