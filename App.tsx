@@ -42,36 +42,43 @@ const App: React.FC = () => {
       
       const data = await response.json();
       
+      // 🔥 카테고리를 초기 상태로 리셋 (디폴트 툴 제거, 추가 버튼만 유지)
+      const resetCategories = INITIAL_TOOL_CATEGORIES.map(cat => ({
+        ...cat,
+        tools: cat.tools.filter(t => t.isAddButton)
+      }));
+      
       if (data.tools && data.tools.length > 0) {
-        setCategories(prevCategories => {
-          const updatedCategories = [...prevCategories];
+        const updatedCategories = [...resetCategories];
+        
+        data.tools.forEach((dbTool: any) => {
+          const categoryIndex = updatedCategories.findIndex(
+            cat => cat.id === dbTool.categoryId
+          );
           
-          data.tools.forEach((dbTool: any) => {
-            const categoryIndex = updatedCategories.findIndex(
-              cat => cat.id === dbTool.categoryId
-            );
+          if (categoryIndex !== -1) {
+            const newTool: Tool = {
+              name: dbTool.toolName,
+              url: dbTool.toolUrl,
+              dbId: dbTool.id,
+              icon: dbTool.iconUrl 
+                ? <img src={dbTool.iconUrl} alt={`${dbTool.toolName} icon`} className="w-full h-full object-contain rounded" />
+                : <PlaceholderIcon />,
+            };
             
-            if (categoryIndex !== -1) {
-              const newTool: Tool = {
-                name: dbTool.toolName,
-                url: dbTool.toolUrl,
-                dbId: dbTool.id, // 🔥 추가: 데이터베이스 ID 저장
-                icon: dbTool.iconUrl 
-                  ? <img src={dbTool.iconUrl} alt={`${dbTool.toolName} icon`} className="w-full h-full object-contain rounded" />
-                  : <PlaceholderIcon />,
-              };
-              
-              const addButtonIndex = updatedCategories[categoryIndex].tools.findIndex(t => t.isAddButton);
-              if (addButtonIndex !== -1) {
-                updatedCategories[categoryIndex].tools.splice(addButtonIndex, 0, newTool);
-              } else {
-                updatedCategories[categoryIndex].tools.push(newTool);
-              }
+            const addButtonIndex = updatedCategories[categoryIndex].tools.findIndex(t => t.isAddButton);
+            if (addButtonIndex !== -1) {
+              updatedCategories[categoryIndex].tools.splice(addButtonIndex, 0, newTool);
+            } else {
+              updatedCategories[categoryIndex].tools.push(newTool);
             }
-          });
-          
-          return updatedCategories;
+          }
         });
+        
+        setCategories(updatedCategories);
+      } else {
+        // 🔥 저장된 툴이 없으면 깨끗한 초기 상태로
+        setCategories(resetCategories);
       }
     } catch (error) {
       console.error('Failed to load user tools:', error);
