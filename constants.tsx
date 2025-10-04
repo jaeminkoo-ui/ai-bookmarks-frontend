@@ -5,7 +5,7 @@ import { ToolCategory } from './types';
 const getFaviconUrl = (url: string) => {
   try {
     const domain = new URL(url).hostname;
-    return `https://icon.horse/icon/${domain}`;
+    return `https://icons.duckduckgo.com/ip3/${domain}.ico`;
   } catch (error) {
     return ''; // 유효하지 않은 URL일 경우 빈 문자열 반환
   }
