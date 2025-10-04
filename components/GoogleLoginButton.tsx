@@ -41,6 +41,8 @@ const GoogleLoginButton = () => {
   };
 
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    
     const initializeButton = () => {
       if (initAttempted.current) return;
       
@@ -56,12 +58,16 @@ const GoogleLoginButton = () => {
           buttonRef.current,
           { theme: 'outline', size: 'large', text: 'signin_with', shape: 'rectangular' }
         );
-      } else {
-        setTimeout(initializeButton, 50);
+      } else if (!initAttempted.current) {
+        timeoutId = setTimeout(initializeButton, 50);
       }
     };
 
     initializeButton();
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, []);
 
   return <div ref={buttonRef}></div>;
