@@ -10,6 +10,7 @@ import ContextMenu from './components/ContextMenu';
 import { INITIAL_TOOL_CATEGORIES } from './constants';
 import { ToolCategory, Tool } from './types';
 import { useAuth } from './contexts/AuthContext';
+import ToolIcon from './components/ToolIcon';
 
 const BACKEND_URL = 'https://ai-bookmarks-backends.onrender.com';
 
@@ -31,40 +32,81 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (user?.email) {
-      loadUserTools(user.email);
+      loadUserData(user.email);
     }
   }, [user]);
 
-  const loadUserTools = async (email: string) => {
+  const loadUserData = async (email: string) => {
     try {
-      const response = await fetch(`${BACKEND_URL}/api/user/tools/${email}`);
-      if (!response.ok) throw new Error('Failed to load tools');
-      
-      const data = await response.json();
-      
-      if (data.tools && data.tools.length > 0) {
-        // 기본 카테고리 복사 (기본 도구들 유지)
-        const updatedCategories = INITIAL_TOOL_CATEGORIES.map(cat => ({
-          ...cat,
-          tools: [...cat.tools]
-        }));
-        
-        // 사용자가 저장한 도구 추가
-        data.tools.forEach((dbTool: any) => {
+      // 사용자가 추가한 툴과 오버라이드 정보를 동시에 가져오기
+      const [toolsResponse, overridesResponse] = await Promise.all([
+        fetch(`${BACKEND_URL}/api/user/tools/${email}`),
+        fetch(`${BACKEND_URL}/api/user/tool-overrides/${email}`)
+      ]);
+
+      if (!toolsResponse.ok || !overridesResponse.ok) {
+        throw new Error('Failed to load user data');
+      }
+
+      const toolsData = await toolsResponse.json();
+      const overridesData = await overridesResponse.json();
+
+      // 기본 카테고리 복사
+      const updatedCategories = INITIAL_TOOL_CATEGORIES.map(cat => ({
+        ...cat,
+        tools: [...cat.tools]
+      }));
+
+      // 오버라이드 적용 (기본 도구 수정/삭제)
+      if (overridesData.overrides && overridesData.overrides.length > 0) {
+        overridesData.overrides.forEach((override: any) => {
+          const categoryIndex = updatedCategories.findIndex(
+            cat => cat.id === override.categoryId
+          );
+
+          if (categoryIndex !== -1) {
+            if (override.action === 'hide') {
+              // 도구 숨기기
+              updatedCategories[categoryIndex].tools = updatedCategories[categoryIndex].tools.filter(
+                t => t.name !== override.toolName
+              );
+            } else if (override.action === 'edit') {
+              // 도구 수정
+              updatedCategories[categoryIndex].tools = updatedCategories[categoryIndex].tools.map(t => {
+                if (t.name === override.toolName) {
+                  return {
+                    ...t,
+                    name: override.newName || t.name,
+                    url: override.newUrl || t.url,
+                    icon: override.newIconUrl 
+                      ? <ToolIcon src={override.newIconUrl} alt={`${override.newName || t.name} icon`} />
+                      : t.icon
+                  };
+                }
+                return t;
+              });
+            }
+          }
+        });
+      }
+
+      // 사용자가 추가한 도구 추가
+      if (toolsData.tools && toolsData.tools.length > 0) {
+        toolsData.tools.forEach((dbTool: any) => {
           const categoryIndex = updatedCategories.findIndex(
             cat => cat.id === dbTool.categoryId
           );
-          
+
           if (categoryIndex !== -1) {
             const newTool: Tool = {
               name: dbTool.toolName,
               url: dbTool.toolUrl,
               dbId: dbTool.id,
               icon: dbTool.iconUrl 
-                ? <img src={dbTool.iconUrl} alt={`${dbTool.toolName} icon`} className="w-full h-full object-contain rounded" />
+                ? <ToolIcon src={dbTool.iconUrl} alt={`${dbTool.toolName} icon`} />
                 : <PlaceholderIcon />,
             };
-            
+
             const addButtonIndex = updatedCategories[categoryIndex].tools.findIndex(t => t.isAddButton);
             if (addButtonIndex !== -1) {
               updatedCategories[categoryIndex].tools.splice(addButtonIndex, 0, newTool);
@@ -73,12 +115,11 @@ const App: React.FC = () => {
             }
           }
         });
-        
-        setCategories(updatedCategories);
       }
-      // 저장된 도구가 없으면 초기 상태(INITIAL_TOOL_CATEGORIES) 유지
+
+      setCategories(updatedCategories);
     } catch (error) {
-      console.error('Failed to load user tools:', error);
+      console.error('Failed to load user data:', error);
     }
   };
 
@@ -138,7 +179,7 @@ const App: React.FC = () => {
         name: toolName,
         url: toolUrl,
         dbId: data.tool.id,
-        icon: iconUrl ? <img src={iconUrl} alt={`${toolName} icon`} className="w-full h-full object-contain rounded" /> : <PlaceholderIcon />,
+        icon: iconUrl ? <ToolIcon src={iconUrl} alt={`${toolName} icon`} /> : <PlaceholderIcon />,
       };
 
       setCategories(prevCategories => 
@@ -176,10 +217,10 @@ const App: React.FC = () => {
   };
   
   const handleEditTool = async (originalToolName: string, newName: string, newUrl: string, newIconUrl: string | null) => {
-    if (!toolToEdit) return;
+    if (!toolToEdit || !user?.email) return;
     const { categoryId, tool } = toolToEdit;
 
-    // 백엔드에 수정 요청
+    // 사용자가 추가한 도구인 경우
     if (tool.dbId) {
       try {
         const response = await fetch(`${BACKEND_URL}/api/user/tools/${tool.dbId}`, {
@@ -198,6 +239,29 @@ const App: React.FC = () => {
         alert('툴 수정에 실패했습니다.');
         return;
       }
+    } else {
+      // 기본 도구인 경우 - 오버라이드 저장
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/user/tool-overrides`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userEmail: user.email,
+            categoryId,
+            toolName: originalToolName,
+            action: 'edit',
+            newName,
+            newUrl,
+            newIconUrl,
+          }),
+        });
+
+        if (!response.ok) throw new Error('Failed to save tool override');
+      } catch (error) {
+        console.error('Failed to save tool override:', error);
+        alert('툴 수정에 실패했습니다.');
+        return;
+      }
     }
 
     // 로컬 상태 업데이트
@@ -212,7 +276,7 @@ const App: React.FC = () => {
                     name: newName, 
                     url: newUrl, 
                     icon: newIconUrl 
-                          ? <img src={newIconUrl} alt={`${newName} icon`} className="w-full h-full object-contain rounded" /> 
+                          ? <ToolIcon src={newIconUrl} alt={`${newName} icon`} />
                           : <PlaceholderIcon />
                   }
                 : t
@@ -241,10 +305,12 @@ const App: React.FC = () => {
   };
 
   const handleDeleteTool = async (categoryId: string, toolName: string) => {
+    if (!user?.email) return;
+
     const category = categories.find(c => c.id === categoryId);
     const tool = category?.tools.find(t => t.name === toolName);
 
-    // 백엔드에 삭제 요청
+    // 사용자가 추가한 도구인 경우
     if (tool?.dbId) {
       try {
         const response = await fetch(`${BACKEND_URL}/api/user/tools/${tool.dbId}`, {
@@ -254,6 +320,26 @@ const App: React.FC = () => {
         if (!response.ok) throw new Error('Failed to delete tool');
       } catch (error) {
         console.error('Failed to delete tool:', error);
+        alert('툴 삭제에 실패했습니다.');
+        return;
+      }
+    } else {
+      // 기본 도구인 경우 - 오버라이드 저장 (숨김)
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/user/tool-overrides`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userEmail: user.email,
+            categoryId,
+            toolName,
+            action: 'hide',
+          }),
+        });
+
+        if (!response.ok) throw new Error('Failed to save tool override');
+      } catch (error) {
+        console.error('Failed to save tool override:', error);
         alert('툴 삭제에 실패했습니다.');
         return;
       }
