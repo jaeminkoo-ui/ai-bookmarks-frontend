@@ -1,8 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Header from './components/Header';
 import NewsTicker from './components/NewsTicker';
 import ToolSection from './components/ToolSection';
-// import FloatingActionButton from './components/FloatingActionButton';
 import AddToolModal from './components/AddToolModal';
 import EditToolModal from './components/EditToolModal';
 import AddCategoryModal from './components/AddCategoryModal';
@@ -11,6 +10,8 @@ import ContextMenu from './components/ContextMenu';
 import { INITIAL_TOOL_CATEGORIES } from './constants';
 import { ToolCategory, Tool } from './types';
 import { useAuth } from './contexts/AuthContext';
+
+const BACKEND_URL = 'https://ai-bookmarks-backends.onrender.com';
 
 const PlaceholderIcon = ({ color = 'bg-gray-200' }: { color?: string }) => (
     <div className={`w-8 h-8 rounded-full ${color}`}></div>
@@ -27,6 +28,57 @@ const App: React.FC = () => {
 
   const dragItemIndex = useRef<number | null>(null);
   const dragOverItemIndex = useRef<number | null>(null);
+
+  // 로그인 시 사용자 툴 불러오기
+  useEffect(() => {
+    if (user?.email) {
+      loadUserTools(user.email);
+    }
+  }, [user]);
+
+  const loadUserTools = async (email: string) => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/user/tools/${email}`);
+      if (!response.ok) throw new Error('Failed to load tools');
+      
+      const data = await response.json();
+      
+      // 백엔드에서 가져온 툴을 카테고리에 추가
+      if (data.tools && data.tools.length > 0) {
+        setCategories(prevCategories => {
+          const updatedCategories = [...prevCategories];
+          
+          data.tools.forEach((dbTool: any) => {
+            const categoryIndex = updatedCategories.findIndex(
+              cat => cat.id === dbTool.categoryId
+            );
+            
+            if (categoryIndex !== -1) {
+              const newTool: Tool = {
+                name: dbTool.toolName,
+                url: dbTool.toolUrl,
+                icon: dbTool.iconUrl 
+                  ? <img src={dbTool.iconUrl} alt={`${dbTool.toolName} icon`} className="w-full h-full object-contain rounded" />
+                  : <PlaceholderIcon />,
+              };
+              
+              // 추가 버튼 앞에 삽입
+              const addButtonIndex = updatedCategories[categoryIndex].tools.findIndex(t => t.isAddButton);
+              if (addButtonIndex !== -1) {
+                updatedCategories[categoryIndex].tools.splice(addButtonIndex, 0, newTool);
+              } else {
+                updatedCategories[categoryIndex].tools.push(newTool);
+              }
+            }
+          });
+          
+          return updatedCategories;
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load user tools:', error);
+    }
+  };
 
   const handleDragStart = (index: number) => {
     dragItemIndex.current = index;
@@ -57,31 +109,54 @@ const App: React.FC = () => {
     setCategoryToAddTool(null);
   };
 
-  // handleAddTool 함수가 새 Modal에 맞게 수정되었습니다.
-  const handleAddTool = (toolName: string, toolUrl: string, iconUrl: string | null) => {
-    if (!categoryToAddTool) return;
+  const handleAddTool = async (toolName: string, toolUrl: string, iconUrl: string | null) => {
+    if (!categoryToAddTool || !user?.email) return;
 
-    const newTool: Tool = {
-      name: toolName,
-      url: toolUrl,
-      icon: iconUrl ? <img src={iconUrl} alt={`${toolName} icon`} className="w-full h-full object-contain rounded" /> : <PlaceholderIcon />,
-    };
+    const category = categories.find(cat => cat.title === categoryToAddTool);
+    if (!category) return;
 
-    setCategories(prevCategories => 
-      prevCategories.map(category => {
-        if (category.title === categoryToAddTool) {
-          const addButtonIndex = category.tools.findIndex(t => t.isAddButton);
-          const newTools = [...category.tools];
-          if (addButtonIndex !== -1) {
-            newTools.splice(addButtonIndex, 0, newTool);
-          } else {
-            newTools.push(newTool);
+    // 백엔드에 저장
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/user/tools`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userEmail: user.email,
+          categoryId: category.id,
+          toolName,
+          toolUrl,
+          iconUrl,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to save tool');
+
+      // 로컬 상태 업데이트
+      const newTool: Tool = {
+        name: toolName,
+        url: toolUrl,
+        icon: iconUrl ? <img src={iconUrl} alt={`${toolName} icon`} className="w-full h-full object-contain rounded" /> : <PlaceholderIcon />,
+      };
+
+      setCategories(prevCategories => 
+        prevCategories.map(cat => {
+          if (cat.title === categoryToAddTool) {
+            const addButtonIndex = cat.tools.findIndex(t => t.isAddButton);
+            const newTools = [...cat.tools];
+            if (addButtonIndex !== -1) {
+              newTools.splice(addButtonIndex, 0, newTool);
+            } else {
+              newTools.push(newTool);
+            }
+            return { ...cat, tools: newTools };
           }
-          return { ...category, tools: newTools };
-        }
-        return category;
-      })
-    );
+          return cat;
+        })
+      );
+    } catch (error) {
+      console.error('Failed to add tool:', error);
+      alert('툴 추가에 실패했습니다.');
+    }
   };
 
   const handleAddCategory = (name: string) => {
@@ -97,7 +172,6 @@ const App: React.FC = () => {
     setIsAddCategoryModalOpen(false);
   };
   
-  // handleEditTool 함수가 새 Modal에 맞게 수정되었습니다.
   const handleEditTool = (originalToolName: string, newName: string, newUrl: string, newIconUrl: string | null) => {
     if (!toolToEdit) return;
     const { categoryId } = toolToEdit;
@@ -156,7 +230,6 @@ const App: React.FC = () => {
     handleCloseContextMenu();
   };
 
-
   return (
     <div className="bg-white min-h-screen font-sans text-gray-800 flex flex-col">
       <Header />
@@ -190,9 +263,7 @@ const App: React.FC = () => {
         )}
       </main>
       <Footer />
-      {/* <FloatingActionButton /> */}
       
-      {/* Modal 호출 부분이 수정되었습니다. */}
       {isModalOpen && categoryToAddTool && (
         <AddToolModal
           onClose={handleCloseModal}
