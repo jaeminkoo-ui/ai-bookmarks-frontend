@@ -80,8 +80,6 @@ export const INITIAL_TOOL_CATEGORIES: ToolCategory[] = [
         { name: 'Cursor', url: 'https://cursor.sh/', icon: <ToolIcon src={getFaviconUrl('https://cursor.sh/')} alt="Cursor icon" /> },
         { name: 'Lovable', url: 'https://lovable.dev/', icon: <ToolIcon src={getFaviconUrl('https://lovable.dev/')} alt="Lovable icon" /> },
         { name: 'Replit AI', url: 'https://replit.com/ai', icon: <ToolIcon src={getFaviconUrl('https://replit.com/ai')} alt="Replit AI icon" /> },
-        { name: 'Base44', url: 'https://base4.4/', icon: <ToolIcon src={getFaviconUrl('https://base4.4/')} alt="Base44 icon" /> },
-        { name: 'Bolt', url: 'https://bolt.dev/', icon: <ToolIcon src={getFaviconUrl('https://bolt.dev/')} alt="Bolt icon" /> },
         { name: '', icon: <div/>, isAddButton: true },
     ]
   },
@@ -100,7 +98,6 @@ export const INITIAL_TOOL_CATEGORIES: ToolCategory[] = [
       title: 'Edit',
       tools: [
           { name: 'Opus Clip', url: 'https://www.opus.pro/', icon: <ToolIcon src={getFaviconUrl('https://www.opus.pro/')} alt="Opus Clip icon" /> },
-          { name: 'Cutback', url: 'https://cutback.ai/', icon: <ToolIcon src={getFaviconUrl('https://cutback.ai/')} alt="Cutback icon" /> },
           { name: 'Capcut', url: 'https://www.capcut.com/', icon: <ToolIcon src={getFaviconUrl('https://www.capcut.com/')} alt="Capcut icon" /> },
           { name: '', icon: <div/>, isAddButton: true },
       ]
