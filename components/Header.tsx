@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import GoogleLoginButton from './GoogleLoginButton'; // Google 로그인 기능을 가진 컴포넌트
 
@@ -11,17 +12,18 @@ const Header: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center space-x-8">
-            <div className="flex items-center space-x-2">
+            <Link to="/" className="flex items-center space-x-2">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M6.5 5L11 9.5L6.5 14" stroke="#0066FF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M12.5 5L17 9.5L12.5 14" stroke="#0066FF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               <span className="text-2xl font-bold text-blue-600">Quick AI Bookmarks</span>
-            </div>
-             {/* <nav className="hidden md:flex space-x-8">
-               <a href="#" className="text-gray-600 hover:text-gray-900 font-semibold">AI 바로가기</a>
-               <a href="#" className="text-gray-600 hover:text-gray-900 font-semibold">AI 구독관리</a>
-             </nav> */}
+            </Link>
+             {user && user.isAdmin && (
+               <nav className="hidden md:flex space-x-8">
+                 <Link to="/admin" className="text-gray-600 hover:text-gray-900 font-semibold">관리자</Link>
+               </nav>
+             )}
           </div>
           <div className="flex items-center space-x-4">
             <button className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50">

@@ -5,6 +5,7 @@ interface User {
   email: string;
   name: string;
   avatarUrl: string;
+  isAdmin?: boolean; // 관리자 여부
 }
 
 // Context가 가지게 될 값들의 타입을 정의합니다.
@@ -25,16 +26,23 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    // 페이지 로드 시 로컬 스토리지에서 사용자 정보 복구
+    const savedUser = localStorage.getItem('user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
 
   const login = (userData: User) => {
     setUser(userData);
+    // 사용자 정보를 로컬 스토리지에 저장
+    localStorage.setItem('user', JSON.stringify(userData));
   };
 
   const logout = () => {
     // ★★★ 핵심 수정 부분 ★★★
-    // 1. 로컬 스토리지에서 인증 토큰을 삭제합니다.
+    // 1. 로컬 스토리지에서 인증 토큰과 사용자 정보를 삭제합니다.
     localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
     
     // 2. 앱의 사용자 상태를 null로 변경합니다.
     setUser(null);
